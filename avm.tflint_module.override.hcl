@@ -5,6 +5,14 @@
 # - The AVM interface checks expect role_assignments to be assignments "on" the created resource.
 # Disable the AVM rules that enforce that interface and a few related warnings.
 
+# Disable the AVM interface check for role_assignments variable
+# This module's role_assignments has 'scope' field because it assigns the created group
+# TO Azure resources at various scopes, not roles assigned TO the group itself.
+# See variables.tf for full explanation.
+rule "role_assignments" {
+  enabled = false
+}
+
 rule "required_output_rmfr7" {
   enabled = false
 }
