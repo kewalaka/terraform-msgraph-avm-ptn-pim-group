@@ -212,4 +212,6 @@ locals {
       )
     )
   }
+
+  // (PIM rule locals moved to locals.pim.tf)
 }

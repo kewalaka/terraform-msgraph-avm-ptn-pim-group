@@ -1,8 +1,6 @@
 // azuread_client_config removed; owners are provided via variables
 
-###############################################################################
-# Role Definition Helper Module (conditional)
-###############################################################################
+// Role Definition Helper Module (conditional)
 module "role_definitions" {
   source  = "Azure/avm-utl-roledefinitions/azure"
   version = ">= 0.1.0"
@@ -196,9 +194,6 @@ resource "time_sleep" "wait_for_group_replication" {
   create_duration = "30s"
 }
 
-# Define PIM activation requirements for group members.
-/* TODO: Implement PIM policy configuration via Microsoft Graph unifiedRoleManagementPolicy + unifiedRoleManagementPolicyAssignment.
-   Current approach removes the azuread policy resource to decouple the module from hashicorp/azuread.
-   Eligibility requests remain create-only and depend only on the group existence. */
+// (PIM resources moved to main.pim.tf)
 
 
