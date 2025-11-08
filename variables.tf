@@ -121,7 +121,6 @@ variable "role_assignments" {
     }), null)
   }))
   default     = {}
-  nullable    = false
   description = <<DESCRIPTION
 A map of Azure RBAC role assignments where the created group will be assigned as principal.
 Unlike the standard AVM role_assignments interface, these assignments are made TO external Azure 
@@ -140,6 +139,7 @@ resources (at the specified scope), not on the group itself.
 - `principal_type` - (Optional) The type of the `principal_id`. Possible values are `User`, `Group` and `ServicePrincipal`.
 - `timeouts` - (Optional) Timeout configuration for create, read, and delete operations.
 DESCRIPTION
+  nullable    = false
 
   validation {
     condition = alltrue([
@@ -176,7 +176,6 @@ DESCRIPTION
     error_message = "condition_version must be '2.0' when condition is provided."
   }
 }
-
 
 variable "role_definition_lookup_scope" {
   type        = string

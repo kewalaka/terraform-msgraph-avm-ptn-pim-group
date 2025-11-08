@@ -43,8 +43,6 @@ The following requirements are needed by this module:
 
 - <a name="requirement_random"></a> [random](#requirement\_random) (~> 3.5)
 
-- <a name="requirement_time"></a> [time](#requirement\_time) (~> 0.9)
-
 ## Resources
 
 The following resources are used by this module:
@@ -411,7 +409,22 @@ Default: `false`
 
 ### <a name="input_role_assignments"></a> [role\_assignments](#input\_role\_assignments)
 
-Description: Map of permanent role assignments keyed by an arbitrary identifier.
+Description: A map of Azure RBAC role assignments where the created group will be assigned as principal.  
+Unlike the standard AVM role\_assignments interface, these assignments are made TO external Azure   
+resources (at the specified scope), not on the group itself.
+
+- `<map key>` - An arbitrary unique key for the assignment.
+- `scope` - The Azure resource ID where the role assignment will be created.
+- `role_definition_id_or_name` - The ID or name of the role definition to assign.
+- `name` - (Optional) The name GUID for the role assignment. If not provided, a random UUID will be generated.
+- `principal_id` - (Optional) The principal ID to assign. Defaults to the created group's ID.
+- `description` - (Optional) The description of the role assignment.
+- `skip_service_principal_aad_check` - (Optional) If set to true, skips the Azure Active Directory check for the service principal.
+- `condition` - (Optional) The condition which will be used to scope the role assignment.
+- `condition_version` - (Optional) The version of the condition syntax. Valid values are '2.0'.
+- `delegated_managed_identity_resource_id` - (Optional) The delegated Azure Resource Id which contains a Managed Identity.
+- `principal_type` - (Optional) The type of the `principal_id`. Possible values are `User`, `Group` and `ServicePrincipal`.
+- `timeouts` - (Optional) Timeout configuration for create, read, and delete operations.
 
 Type:
 
@@ -460,6 +473,10 @@ Description: The Object ID of the created Entra ID group (same as group\_id).
 ### <a name="output_pim_policy_rule_status"></a> [pim\_policy\_rule\_status](#output\_pim\_policy\_rule\_status)
 
 Description: Map of PIM policy rule IDs to status (applied|unchanged|policy\_missing).
+
+### <a name="output_resource_id"></a> [resource\_id](#output\_resource\_id)
+
+Description: The Azure resource ID of the Entra ID group. This output is required by Azure Verified Modules specification RMFR7.
 
 ### <a name="output_role_assignments_azapi"></a> [role\_assignments\_azapi](#output\_role\_assignments\_azapi)
 
