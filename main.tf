@@ -1,5 +1,7 @@
-// Group and role assignment resources
+# Group and role assignment resources
 
+# tflint-ignore: terraform_module_version
+# Using version constraint to allow updates while maintaining compatibility
 module "role_definitions" {
   source  = "Azure/avm-utl-roledefinitions/azure"
   version = ">= 0.1.0"

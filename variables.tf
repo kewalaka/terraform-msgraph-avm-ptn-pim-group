@@ -98,7 +98,7 @@ variable "role_assignment_replace_on_immutable_value_changes" {
   description = "If true, role assignments will be replaced automatically when principalId or roleDefinitionId changes. Leave false to avoid replacement loops with unknown values."
 }
 
-# tflint-ignore: required_output_rmfr7
+# tflint-ignore: terraform_standard_module_structure
 # This variable does not comply with standard AVM role_assignments interface because
 # this module assigns the created GROUP to Azure RBAC roles at external scopes,
 # rather than assigning roles TO the created resource (which is the standard pattern).
