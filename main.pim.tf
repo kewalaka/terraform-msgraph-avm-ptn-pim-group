@@ -1,4 +1,4 @@
-// PIM policy assignment & rule patching (Microsoft Graph beta)
+# PIM policy assignment & rule patching (Microsoft Graph beta)
 
 resource "msgraph_resource" "pim_policy_assignment" {
   for_each    = var.create_pim_policy_assignment_if_missing ? { default = true } : {}

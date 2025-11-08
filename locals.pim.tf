@@ -1,4 +1,4 @@
-// PIM policy rule construction
+# PIM policy rule construction
 locals {
   pim_activation_enabled_rules = compact([
     "Justification",
@@ -137,7 +137,7 @@ locals {
   }
 }
 
-// PIM eligibility helpers
+# PIM eligibility helpers
 locals {
   # Group membership eligibility schedules (PIM for Groups)
   eligibility_base = {

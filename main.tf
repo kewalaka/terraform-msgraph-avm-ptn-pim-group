@@ -22,31 +22,31 @@ resource "msgraph_resource" "this" {
         (trimspace(var.group_description) != "" ? var.group_description : null)
       )
 
-      // Security/M365 group flags
+      # Security/M365 group flags
       securityEnabled = coalesce(var.group_settings.security_enabled, true)
       mailEnabled     = coalesce(var.group_settings.mail_enabled, false)
 
-      // Mail nickname is required by Graph; derive if not provided
+      # Mail nickname is required by Graph; derive if not provided
       mailNickname = coalesce(
         try(var.group_settings.mail_nickname, null),
         lower(substr(join("", regexall("[A-Za-z0-9]", var.name)), 0, 64))
       )
 
-      // Explicitly set visibility to avoid drift; default to Private to match Graph's default
+      # Explicitly set visibility to avoid drift; default to Private to match Graph's default
       visibility         = coalesce(var.group_settings.visibility, "Private")
       isAssignableToRole = coalesce(var.group_settings.assignable_to_role, true)
 
-      // Group types incl. dynamic membership marker
+      # Group types incl. dynamic membership marker
       groupTypes = distinct(concat(
         coalesce(try(var.group_settings.types, null), []),
         var.group_settings.dynamic_membership != null && try(var.group_settings.dynamic_membership.enabled, false) ? ["DynamicMembership"] : []
       ))
 
-      // Dynamic membership rule
+      # Dynamic membership rule
       membershipRule                = var.group_settings.dynamic_membership != null ? var.group_settings.dynamic_membership.rule : null
-      membershipRuleProcessingState = var.group_settings.dynamic_membership != null && try(var.group_settings.dynamic_membership.enabled, false) ? "On" : null
+      membershipRuleProcessingState = var.group_settings.dynamic_membership != null ? var.group_settings.dynamic_membership.processing_state : null
     },
-    // Only include owners@odata.bind if there are owners (Graph rejects empty array)
+    # Only include owners@odata.bind if there are owners (Graph rejects empty array)
     length(local.group_owners) > 0 ? {
       "owners@odata.bind" = [
         for id in local.group_owners : "https://graph.microsoft.com/v1.0/directoryObjects/${id}"

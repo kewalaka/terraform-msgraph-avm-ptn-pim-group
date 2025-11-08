@@ -22,3 +22,8 @@ output "role_assignments_azapi" {
   description = "Canonical map of permanent role assignments ready for azapi_resource consumption (name + body + scope derived)."
   value       = local.role_assignments_azapi
 }
+
+output "resource_id" {
+  description = "The Azure resource ID of the Entra ID group. This output is required by Azure Verified Modules specification RMFR7."
+  value       = msgraph_resource.this.id
+}

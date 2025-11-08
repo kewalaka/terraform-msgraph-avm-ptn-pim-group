@@ -1,4 +1,4 @@
-// PIM variables
+# PIM variables
 
 variable "create_pim_policy_assignment_if_missing" {
   type        = bool

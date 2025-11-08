@@ -1,5 +1,3 @@
-// Removed unused variable: group_advanced
-
 # NOTE: Terraform does not support top-level custom validation blocks; keeping ownership check implicit.
 
 variable "name" {
@@ -100,6 +98,10 @@ variable "role_assignment_replace_on_immutable_value_changes" {
   description = "If true, role assignments will be replaced automatically when principalId or roleDefinitionId changes. Leave false to avoid replacement loops with unknown values."
 }
 
+# tflint-ignore: required_output_rmfr7
+# This variable does not comply with standard AVM role_assignments interface because
+# this module assigns the created GROUP to Azure RBAC roles at external scopes,
+# rather than assigning roles TO the created resource (which is the standard pattern).
 variable "role_assignments" {
   type = map(object({
     scope                                  = string
@@ -119,7 +121,25 @@ variable "role_assignments" {
     }), null)
   }))
   default     = {}
-  description = "Map of permanent role assignments keyed by an arbitrary identifier."
+  nullable    = false
+  description = <<DESCRIPTION
+A map of Azure RBAC role assignments where the created group will be assigned as principal.
+Unlike the standard AVM role_assignments interface, these assignments are made TO external Azure 
+resources (at the specified scope), not on the group itself.
+
+- `<map key>` - An arbitrary unique key for the assignment.
+- `scope` - The Azure resource ID where the role assignment will be created.
+- `role_definition_id_or_name` - The ID or name of the role definition to assign.
+- `name` - (Optional) The name GUID for the role assignment. If not provided, a random UUID will be generated.
+- `principal_id` - (Optional) The principal ID to assign. Defaults to the created group's ID.
+- `description` - (Optional) The description of the role assignment.
+- `skip_service_principal_aad_check` - (Optional) If set to true, skips the Azure Active Directory check for the service principal.
+- `condition` - (Optional) The condition which will be used to scope the role assignment.
+- `condition_version` - (Optional) The version of the condition syntax. Valid values are '2.0'.
+- `delegated_managed_identity_resource_id` - (Optional) The delegated Azure Resource Id which contains a Managed Identity.
+- `principal_type` - (Optional) The type of the `principal_id`. Possible values are `User`, `Group` and `ServicePrincipal`.
+- `timeouts` - (Optional) Timeout configuration for create, read, and delete operations.
+DESCRIPTION
 
   validation {
     condition = alltrue([
@@ -141,10 +161,10 @@ variable "role_assignments" {
   validation {
     condition = alltrue([
       for _, cfg in var.role_assignments : (
-        cfg.principal_type == null || contains(["User", "Group", "ServicePrincipal", "MSI"], cfg.principal_type)
+        cfg.principal_type == null || contains(["User", "Group", "ServicePrincipal"], cfg.principal_type)
       )
     ])
-    error_message = "principal_type must be one of 'User', 'Group', 'ServicePrincipal', or 'MSI' when set."
+    error_message = "principal_type must be one of 'User', 'Group', or 'ServicePrincipal' when set."
   }
   # condition_version must be '2.0' if condition is set
   validation {
@@ -156,6 +176,7 @@ variable "role_assignments" {
     error_message = "condition_version must be '2.0' when condition is provided."
   }
 }
+
 
 variable "role_definition_lookup_scope" {
   type        = string
