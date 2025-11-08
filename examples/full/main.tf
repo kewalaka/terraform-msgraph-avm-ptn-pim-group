@@ -117,12 +117,15 @@ module "privileged_group" {
       azuread_user.duty_manager.object_id
     ]
   }
-  pim_activation_max_duration = "PT2H"
+  # IMPORTANT: pim_activation_max_duration and pim_eligibility_duration are commented out
+  # due to msgraph provider bug: https://github.com/microsoft/terraform-provider-msgraph/issues/75
+  # Using non-default values causes persistent drift. Uncomment when provider is fixed.
+  # pim_activation_max_duration = "PT2H"
   pim_approver_object_ids = [
     azuread_user.duty_manager.object_id
   ]
   pim_approver_object_type = "singleUser"
-  pim_eligibility_duration = "P180D"
+  # pim_eligibility_duration = "P180D"
   pim_policy_settings = {
     eligible_assignment_rules = [
       {

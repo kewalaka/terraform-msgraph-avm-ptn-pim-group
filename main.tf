@@ -1,11 +1,11 @@
 # Group and role assignment resources
 
-# tflint-ignore: terraform_module_version
-# Using version constraint to allow updates while maintaining compatibility
-# Group and role assignment resources
+# Role definition name-to-ID lookup using AVM utility module
+# Uses pessimistic version constraint (~>) to allow compatible minor/patch updates
+# while maintaining API compatibility per semantic versioning
 module "role_definitions" {
-  source  = "Azure/avm-res-authorization-roledefinition/azurerm"
-  version = "0.2.2"
+  source  = "Azure/avm-utl-roledefinitions/azure"
+  version = "~> 0.1"
   count   = var.role_definition_lookup_scope == null ? 0 : 1
 
   enable_telemetry      = var.enable_telemetry
@@ -42,7 +42,7 @@ resource "msgraph_resource" "this" {
       # Group types incl. dynamic membership marker
       groupTypes = distinct(concat(
         coalesce(try(var.group_settings.types, null), []),
-        var.group_settings.dynamic_membership != null && try(var.group_settings.dynamic_membership.enabled, false) ? ["DynamicMembership"] : []
+        var.group_settings.dynamic_membership != null ? ["DynamicMembership"] : []
       ))
 
       # Dynamic membership rule

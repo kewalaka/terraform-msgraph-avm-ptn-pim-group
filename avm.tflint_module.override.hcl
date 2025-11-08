@@ -17,6 +17,9 @@ rule "required_output_rmfr7" {
   enabled = false
 }
 
+# Module version constraint uses ~> 0.1 (pessimistic constraint) which is AVM-compliant
+# for allowing compatible minor/patch updates. Disabled as defensive measure to avoid
+# false positives during AVM linting checks.
 rule "terraform_module_version" {
   enabled = false
 }

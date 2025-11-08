@@ -72,8 +72,8 @@ variable "group_settings" {
     types                      = optional(list(string))
     visibility                 = optional(string)
     dynamic_membership = optional(object({
-      enabled = bool
-      rule    = string
+      rule             = string
+      processing_state = optional(string, "On")
     }))
     timeouts = optional(object({
       create = optional(string)
@@ -83,7 +83,42 @@ variable "group_settings" {
     }))
   })
   default     = {}
-  description = "Optional settings applied to the Entra ID group beyond the baseline configuration."
+  description = <<DESCRIPTION
+Optional settings applied to the Entra ID group beyond the baseline configuration.
+
+## Role-Assignable Groups (`assignable_to_role`)
+
+Role-assignable groups have special properties and limitations that should be considered:
+
+### When Role-Assignable is REQUIRED:
+- **Entra ID Role Assignment**: If you want to assign Entra ID (directory) roles to a group, it MUST be role-assignable.
+  The `assignable_to_role` property must be set at group creation and cannot be changed afterward.
+
+### When Role-Assignable is RECOMMENDED:
+- **Critical Resources**: For groups providing access to sensitive resources, role-assignable groups offer enhanced security:
+  - Only Global Administrator, Privileged Role Administrator, or the group Owner can manage the group
+  - Only these privileged roles can modify credentials of active group members
+  - Prevents privilege escalation by lower-privileged administrators (e.g., Helpdesk Administrator cannot reset passwords of members)
+
+### Important Limitations:
+- **500 Group Limit**: Maximum of 500 role-assignable groups per tenant (hard limit)
+- **No Nesting**: Role-assignable groups cannot contain other groups as members
+- **Immutable Property**: Cannot be changed after group creation
+- **Planning Required**: In large environments with many PIM-enabled groups, reserve role-assignable groups for:
+  - Groups that need Entra ID role assignments
+  - Groups providing access to highly privileged resources
+  - Consider using non-role-assignable groups for less critical PIM scenarios (subscription-level access, etc.)
+
+### PIM for Groups Compatibility:
+- **Any security group or Microsoft 365 group can use PIM for Groups** (except dynamic membership groups and on-premises synced groups)
+- Role-assignable groups are NOT required for PIM for Groups functionality
+- This restriction was removed in January 2023, allowing more than 500 PIM-enabled groups per tenant
+
+### Sources:
+- [Relationship between role-assignable groups and PIM for Groups](https://learn.microsoft.com/en-us/entra/id-governance/privileged-identity-management/concept-pim-for-groups#relationship-between-role-assignable-groups-and-pim-for-groups)
+- [What are Microsoft Entra role-assignable groups?](https://learn.microsoft.com/en-us/entra/id-governance/privileged-identity-management/concept-pim-for-groups#what-are-microsoft-entra-role-assignable-groups)
+- [Create a role-assignable group in Microsoft Entra ID](https://learn.microsoft.com/en-us/entra/identity/role-based-access-control/groups-create-eligible)
+DESCRIPTION
 }
 
 variable "role_assignment_definition_lookup_use_live_data" {
@@ -123,7 +158,7 @@ variable "role_assignments" {
   default     = {}
   description = <<DESCRIPTION
 A map of Azure RBAC role assignments where the created group will be assigned as principal.
-Unlike the standard AVM role_assignments interface, these assignments are made TO external Azure 
+Unlike the standard AVM role_assignments interface, these assignments are made TO external Azure
 resources (at the specified scope), not on the group itself.
 
 - `<map key>` - An arbitrary unique key for the assignment.

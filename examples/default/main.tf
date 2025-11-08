@@ -34,7 +34,9 @@ module "privileged_group" {
   source = "../.."
 
   name = "pag-module-testing-minimal-${random_string.group_suffix.result}"
-  # Bypass owner precondition just for this test (don't do this in production)
+  # TESTING ONLY: Bypass owner precondition for minimal example
+  # NEVER use this setting in production - role-assignable groups require owners
+  # See examples/typical or examples/full for production-ready patterns with owners configured
   allow_role_assignable_group_without_owner = true
   group_description                         = "Privileged group with default PIM settings."
   # Switch to role-assignable to align with prior azuread behavior

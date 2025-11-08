@@ -1,22 +1,14 @@
-# PIM policy assignment & rule patching (Microsoft Graph beta)
-
-resource "msgraph_resource" "pim_policy_assignment" {
-  for_each    = var.create_pim_policy_assignment_if_missing ? { default = true } : {}
-  url         = "policies/roleManagementPolicyAssignments"
-  api_version = "beta"
-
-  body = {
-    scopeId          = msgraph_resource.this.id
-    scopeType        = "Group"
-    roleDefinitionId = local.pim_role_id
-    policyId         = "Group_${msgraph_resource.this.id}_${local.pim_role_id}"
-  }
-
-  depends_on = [msgraph_resource.this]
-}
+# PIM policy rule patching (Microsoft Graph beta)
+#
+# NOTE: According to Microsoft documentation (https://learn.microsoft.com/en-us/graph/api/resources/privilegedidentitymanagement-for-groups-api-overview#onboarding-groups-to-pim-for-groups):
+# "You can't explicitly onboard a group to PIM for Groups. When you... update the PIM policy (role settings) for a group...
+# PIM automatically onboards the group if it wasn't onboarded before."
+#
+# Groups are automatically onboarded to PIM when you create eligibility/assignment requests or update policy rules.
+# If no pim_* variables are configured, no policy updates are attempted and the group remains un-onboarded (which is fine).
 
 data "msgraph_resource" "pim_policy" {
-  count       = var.manage_pim_policy_rules ? 1 : 0
+  count       = length(local.pim_member_rule_bodies) > 0 ? 1 : 0
   url         = "policies/roleManagementPolicies"
   api_version = "beta"
 
@@ -34,22 +26,34 @@ data "msgraph_resource" "pim_policy" {
     rules     = "value[0].rules"
   }
 
-  depends_on = [msgraph_resource.this]
+  depends_on = [msgraph_resource.this, msgraph_resource.eligibility_schedule_requests]
 }
 
 resource "msgraph_update_resource" "pim_rule" {
-  for_each    = { for k, v in local.pim_member_rule_bodies : k => v if var.manage_pim_policy_rules }
+  for_each    = local.pim_member_rule_bodies
   url         = "policies/roleManagementPolicies/${local.pim_policy_id}/rules/${each.key}"
   api_version = "beta"
   body        = each.value
 
-  ignore_missing_property = true
-  depends_on              = [msgraph_resource.this, data.msgraph_resource.pim_policy]
+  depends_on = [msgraph_resource.this, data.msgraph_resource.pim_policy]
 
   lifecycle {
     precondition {
       condition     = local.pim_policy_id != null
-      error_message = "PIM policy not found for group scope. Enable PIM for Groups before setting manage_pim_policy_rules=true."
+      error_message = <<ERROR
+PIM policy not found for group. This likely means the group hasn't been onboarded to PIM yet.
+
+To onboard this group to PIM, you have two options:
+1. Create at least one eligible assignment using the eligible_member_schedules variable
+2. Wait for first apply to complete (group creation), then run apply again - PIM will auto-onboard when updating policy rules
+
+According to Microsoft: "When you update the PIM policy (role settings) for a group, PIM automatically onboards the group if it wasn't onboarded before."
+Reference: https://learn.microsoft.com/en-us/graph/api/resources/privilegedidentitymanagement-for-groups-api-overview#onboarding-groups-to-pim-for-groups
+
+However, the initial policy query may fail before onboarding. If you see this error:
+- First apply: Create group without PIM customizations (remove pim_* variables temporarily)
+- Second apply: Add back pim_* variables - this will trigger auto-onboarding and apply custom rules
+ERROR
     }
   }
 }

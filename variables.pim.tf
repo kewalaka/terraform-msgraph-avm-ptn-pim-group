@@ -1,10 +1,8 @@
 # PIM variables
-
-variable "create_pim_policy_assignment_if_missing" {
-  type        = bool
-  default     = false
-  description = "If true, attempt to create a roleManagementPolicyAssignment for this Group scope and pim_role_id (member/owner). Requires PIM for Groups enabled in the tenant. Leave false to avoid first-apply failures when the feature isn't enabled."
-}
+# NOTE: Groups are automatically onboarded to PIM when you:
+# 1. Create an eligibility or assignment schedule request (via eligible_member_schedules), OR
+# 2. Update PIM policy rules (via pim_* variables)
+# Reference: https://learn.microsoft.com/en-us/graph/api/resources/privilegedidentitymanagement-for-groups-api-overview#onboarding-groups-to-pim-for-groups
 
 variable "eligible_member_schedules" {
   type = map(object({
@@ -74,16 +72,16 @@ variable "eligible_role_assignments" {
   }
 }
 
-variable "manage_pim_policy_rules" {
-  type        = bool
-  default     = false
-  description = "If true, PATCH PIM policy rules for this Group (beta Graph). Enable only in tenants where PIM for Groups is active and the policy exists; otherwise leave false to ensure first apply cannot fail."
-}
-
 variable "pim_activation_max_duration" {
   type        = string
   default     = "PT8H"
-  description = "The maximum duration for which a PIM group membership can be activated. Should be an ISO 8601 duration string (e.g., 'PT8H' for 8 hours)."
+  description = <<-DESCRIPTION
+    The maximum duration for which a PIM group membership can be activated. Should be an ISO 8601 duration string (e.g., 'PT8H' for 8 hours).
+
+    **IMPORTANT**: Due to a bug in the msgraph Terraform provider (https://github.com/microsoft/terraform-provider-msgraph/issues/75),
+    changing this value from the Microsoft default (PT8H) will cause persistent drift. The provider reports successful updates
+    but the API does not persist the changes. Until the provider is fixed, use the default value to avoid drift.
+  DESCRIPTION
 }
 
 variable "pim_approver_object_ids" {
@@ -110,8 +108,14 @@ variable "pim_approver_object_type" {
 
 variable "pim_eligibility_duration" {
   type        = string
-  default     = "P180D"
-  description = "The ISO8601 duration that an eligibility assignment remains valid (e.g., 'P365D')."
+  default     = "P365D"
+  description = <<-DESCRIPTION
+    The ISO8601 duration that an eligibility assignment remains valid (e.g., 'P365D').
+
+    **IMPORTANT**: Due to a bug in the msgraph Terraform provider (https://github.com/microsoft/terraform-provider-msgraph/issues/75),
+    changing this value from the Microsoft default (P365D) will cause persistent drift. The provider reports successful updates
+    but the API does not persist the changes. Until the provider is fixed, use the default value to avoid drift.
+  DESCRIPTION
 
   validation {
     condition     = contains(["P15D", "P30D", "P90D", "P180D", "P365D"], var.pim_eligibility_duration)

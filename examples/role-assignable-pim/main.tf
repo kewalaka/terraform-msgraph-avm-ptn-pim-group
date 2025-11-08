@@ -62,19 +62,14 @@ module "privileged_group" {
   source = "../.."
 
   name = "pag-role-assignable-${random_string.group_suffix.result}"
-  # Safe defaults: leave PIM policy assignment/rules off on the first apply.
-  # After the group exists (and tenant has PIM for Groups enabled), set these
-  # to true and apply again to attach policy and patch rules.
-  create_pim_policy_assignment_if_missing = false
-  # Add one eligible principal so that PIM UI shows an Eligible assignment.
-  # Using the created owner for convenience; in real scenarios, target an operator group or user.
+  # PIM onboarding happens automatically when you configure eligible members or PIM policy rules.
+  # This example creates an eligible member assignment, which triggers PIM onboarding.
   eligible_members  = [azuread_user.owner.object_id]
-  group_description = "Fresh role-assignable group with an owner; PIM features toggled off by default."
+  group_description = "Fresh role-assignable group with an owner and PIM eligibility."
   group_settings = {
     assignable_to_role = true
     security_enabled   = true
     mail_enabled       = false
     owners             = [azuread_user.owner.object_id]
   }
-  manage_pim_policy_rules = true
 }

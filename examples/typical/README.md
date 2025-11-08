@@ -139,9 +139,16 @@ module "privileged_group" {
     assignable_to_role = true
     owners             = [azuread_user.approver.object_id]
   }
-  pim_activation_max_duration = "PT4H"
-  pim_approver_object_ids     = [azuread_user.approver.object_id]
-  pim_eligibility_duration    = "P90D"
+  # PIM configuration
+  # NOTE: Setting any pim_* variable automatically onboards the group to PIM.
+  # Microsoft creates the PIM policy when you first update policy rules.
+  #
+  # IMPORTANT: pim_activation_max_duration and pim_eligibility_duration are commented out
+  # due to msgraph provider bug: https://github.com/microsoft/terraform-provider-msgraph/issues/75
+  # Using non-default values causes persistent drift. Uncomment when provider is fixed.
+  # pim_activation_max_duration        = "PT4H"
+  # pim_eligibility_duration           = "P90D"
+  pim_approver_object_ids = [azuread_user.approver.object_id]
   pim_policy_settings = {
     activation_rules = [
       {
