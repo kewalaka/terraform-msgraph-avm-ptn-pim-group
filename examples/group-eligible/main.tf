@@ -64,8 +64,7 @@ resource "azuread_user" "legacy_owner" {
 module "privileged_group" {
   source = "../.."
 
-  name                         = "legacy-pag-module-testing-${random_string.group_suffix.result}"
-  role_definition_lookup_scope = local.subscription_scope
+  name = "legacy-pag-module-testing-${random_string.group_suffix.result}"
   # No eligible members are defined because membership is expected to be permanent in this pattern.
   eligible_members = []
   # Legacy pattern: the group is eligible for RBAC and owners activate on behalf of members.
@@ -92,4 +91,5 @@ module "privileged_group" {
     hide_from_outlook_clients = true
   }
   pim_require_mfa_on_activation = true
+  role_definition_lookup_scope  = local.subscription_scope
 }

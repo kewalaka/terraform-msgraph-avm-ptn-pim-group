@@ -1,4 +1,84 @@
-// PIM-related variables isolated for clarity
+// PIM variables
+
+variable "create_pim_policy_assignment_if_missing" {
+  type        = bool
+  default     = false
+  description = "If true, attempt to create a roleManagementPolicyAssignment for this Group scope and pim_role_id (member/owner). Requires PIM for Groups enabled in the tenant. Leave false to avoid first-apply failures when the feature isn't enabled."
+}
+
+variable "eligible_member_schedules" {
+  type = map(object({
+    principal_id         = string
+    group_id             = optional(string)
+    assignment_type      = optional(string)
+    duration             = optional(string)
+    expiration_date      = optional(string)
+    start_date           = optional(string)
+    justification        = optional(string)
+    permanent_assignment = optional(bool)
+    ticket_number        = optional(string)
+    ticket_system        = optional(string)
+    enabled              = optional(bool)
+    timeouts = optional(object({
+      create = optional(string)
+      read   = optional(string)
+      update = optional(string)
+      delete = optional(string)
+    }))
+  }))
+  default     = {}
+  description = "Advanced configuration for eligible member schedules. Keys should be unique identifiers for each schedule."
+}
+
+variable "eligible_members" {
+  type        = list(string)
+  default     = []
+  description = "A list of principal IDs to be made eligible for membership in the group."
+}
+
+variable "eligible_role_assignments" {
+  type = map(object({
+    scope                      = string
+    role_definition_id_or_name = string
+    principal_id               = optional(string, null)
+    condition                  = optional(string, null)
+    condition_version          = optional(string, null)
+    justification              = optional(string, null)
+    schedule = optional(object({
+      start_date_time = optional(string, null)
+      expiration = optional(object({
+        duration_days  = optional(number, null)
+        duration_hours = optional(number, null)
+        end_date_time  = optional(string, null)
+      }), null)
+    }), null)
+    ticket = optional(object({
+      system = optional(string, null)
+      number = optional(string, null)
+    }), null)
+    timeouts = optional(object({
+      create = optional(string, null)
+      read   = optional(string, null)
+      delete = optional(string, null)
+    }), null)
+  }))
+  default     = {}
+  description = "Map of PIM-eligible role assignments keyed by an arbitrary identifier."
+
+  validation {
+    condition = alltrue([
+      for _, cfg in var.eligible_role_assignments :
+      length(trimspace(cfg.scope)) > 0 && length(trimspace(cfg.role_definition_id_or_name)) > 0
+    ])
+    error_message = "Each eligible role assignment must include both scope and role_definition_id_or_name."
+  }
+}
+
+variable "manage_pim_policy_rules" {
+  type        = bool
+  default     = false
+  description = "If true, PATCH PIM policy rules for this Group (beta Graph). Enable only in tenants where PIM for Groups is active and the policy exists; otherwise leave false to ensure first apply cannot fail."
+}
 
 variable "pim_activation_max_duration" {
   type        = string
@@ -135,16 +215,4 @@ variable "pim_require_mfa_on_activation" {
   type        = bool
   default     = true
   description = "Whether MFA is required to activate PIM group membership."
-}
-
-variable "create_pim_policy_assignment_if_missing" {
-  type        = bool
-  default     = false
-  description = "If true, attempt to create a roleManagementPolicyAssignment for this Group scope and pim_role_id (member/owner). Requires PIM for Groups enabled in the tenant. Leave false to avoid first-apply failures when the feature isn't enabled."
-}
-
-variable "manage_pim_policy_rules" {
-  type        = bool
-  default     = false
-  description = "If true, PATCH PIM policy rules for this Group (beta Graph). Enable only in tenants where PIM for Groups is active and the policy exists; otherwise leave false to ensure first apply cannot fail."
 }

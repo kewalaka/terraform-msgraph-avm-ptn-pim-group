@@ -92,8 +92,6 @@ module "privileged_group" {
   source = "../.."
 
   name = "pag-module-testing-${random_string.group_suffix.result}"
-  # Resolve role definition names (e.g., "Contributor") to IDs using helper module at subscription scope
-  role_definition_lookup_scope = local.subscription_scope
   eligible_members = [
     azuread_group.operations_team.object_id,
   ]
@@ -129,4 +127,6 @@ module "privileged_group" {
       role_definition_id_or_name = "Contributor"
     }
   }
+  # Resolve role definition names (e.g., "Contributor") to IDs using helper module at subscription scope
+  role_definition_lookup_scope = local.subscription_scope
 }

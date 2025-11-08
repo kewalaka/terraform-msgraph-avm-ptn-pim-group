@@ -1,3 +1,7 @@
+// Removed unused variable: group_advanced
+
+# NOTE: Terraform does not support top-level custom validation blocks; keeping ownership check implicit.
+
 variable "name" {
   type        = string
   description = "The display name for the Entra ID group."
@@ -8,72 +12,23 @@ variable "name" {
   }
 }
 
-variable "eligible_member_schedules" {
-  type = map(object({
-    principal_id         = string
-    group_id             = optional(string)
-    assignment_type      = optional(string)
-    duration             = optional(string)
-    expiration_date      = optional(string)
-    start_date           = optional(string)
-    justification        = optional(string)
-    permanent_assignment = optional(bool)
-    ticket_number        = optional(string)
-    ticket_system        = optional(string)
-    enabled              = optional(bool)
-    timeouts = optional(object({
-      create = optional(string)
-      read   = optional(string)
-      update = optional(string)
-      delete = optional(string)
-    }))
-  }))
-  default     = {}
-  description = "Advanced configuration for eligible member schedules. Keys should be unique identifiers for each schedule."
-}
+variable "allow_role_assignable_group_without_owner" {
+  type        = bool
+  default     = false
+  description = <<DESC
+Allows creation of a role-assignable group without any owners. Not recommended.
 
-variable "eligible_members" {
-  type        = list(string)
-  default     = []
-  description = "A list of principal IDs to be made eligible for membership in the group."
-}
+Why: Owners provide delegated recovery and governance for privileged groups.
+Leaving a role-assignable group ownerless can impede lifecycle management and
+reduce accountability.
 
-variable "eligible_role_assignments" {
-  type = map(object({
-    scope                      = string
-    role_definition_id_or_name = string
-    principal_id               = optional(string, null)
-    condition                  = optional(string, null)
-    condition_version          = optional(string, null)
-    justification              = optional(string, null)
-    schedule = optional(object({
-      start_date_time = optional(string, null)
-      expiration = optional(object({
-        duration_days  = optional(number, null)
-        duration_hours = optional(number, null)
-        end_date_time  = optional(string, null)
-      }), null)
-    }), null)
-    ticket = optional(object({
-      system = optional(string, null)
-      number = optional(string, null)
-    }), null)
-    timeouts = optional(object({
-      create = optional(string, null)
-      read   = optional(string, null)
-      delete = optional(string, null)
-    }), null)
-  }))
-  default     = {}
-  description = "Map of PIM-eligible role assignments keyed by an arbitrary identifier."
+References:
+- Microsoft Graph group (isAssignableToRole): https://learn.microsoft.com/graph/api/resources/group?view=graph-rest-1.0
+- Assign Azure roles using groups: https://learn.microsoft.com/azure/role-based-access-control/role-assignments-group
+- Privileged access groups (PIM): https://learn.microsoft.com/entra/id-governance/privileged-identity-management/groups-features
 
-  validation {
-    condition = alltrue([
-      for _, cfg in var.eligible_role_assignments :
-      length(trimspace(cfg.scope)) > 0 && length(trimspace(cfg.role_definition_id_or_name)) > 0
-    ])
-    error_message = "Each eligible role assignment must include both scope and role_definition_id_or_name."
-  }
+Set to true only if you fully understand and accept the risk.
+DESC
 }
 
 variable "enable_telemetry" {
@@ -85,6 +40,12 @@ For more information see <https://aka.ms/avm/telemetryinfo>.
 If it is set to false, then no telemetry will be collected.
 DESCRIPTION
   nullable    = false
+}
+
+variable "group_default_owner_object_ids" {
+  type        = list(string)
+  default     = []
+  description = "Fallback list of owner object IDs when group_settings.owners is not specified. Provide at least one for role-assignable groups."
 }
 
 variable "group_description" {
@@ -127,50 +88,17 @@ variable "group_settings" {
   description = "Optional settings applied to the Entra ID group beyond the baseline configuration."
 }
 
-variable "group_default_owner_object_ids" {
-  type        = list(string)
-  default     = []
-  description = "Fallback list of owner object IDs when group_settings.owners is not specified. Provide at least one for role-assignable groups."
-}
-
-variable "allow_role_assignable_group_without_owner" {
+variable "role_assignment_definition_lookup_use_live_data" {
   type        = bool
   default     = false
-  description = <<DESC
-Allows creation of a role-assignable group without any owners. Not recommended.
-
-Why: Owners provide delegated recovery and governance for privileged groups.
-Leaving a role-assignable group ownerless can impede lifecycle management and
-reduce accountability.
-
-References:
-- Microsoft Graph group (isAssignableToRole): https://learn.microsoft.com/graph/api/resources/group?view=graph-rest-1.0
-- Assign Azure roles using groups: https://learn.microsoft.com/azure/role-based-access-control/role-assignments-group
-- Privileged access groups (PIM): https://learn.microsoft.com/entra/id-governance/privileged-identity-management/groups-features
-
-Set to true only if you fully understand and accept the risk.
-DESC
+  description = "Whether to use live (API) data for role definition name lookups. If false, cached data from the helper module is used for stability."
 }
 
-variable "group_advanced" {
-  type = object({
-    classification                   = optional(string)
-    preferred_language               = optional(string)
-    preferred_data_location          = optional(string)
-    unique_name                      = optional(string)
-    is_management_restricted         = optional(bool)
-    sensitivity_labels               = optional(list(object({ label_id = string })))
-    assigned_licenses                = optional(list(object({ sku_id = string, disabled_plans = optional(list(string), []) })))
-    explicit_group_types             = optional(list(string))
-    membership_rule_processing_state = optional(string) # On | Paused
-  })
-  default     = {}
-  description = "Advanced Microsoft Graph group fields for full coverage beyond baseline AVM settings."
+variable "role_assignment_replace_on_immutable_value_changes" {
+  type        = bool
+  default     = false
+  description = "If true, role assignments will be replaced automatically when principalId or roleDefinitionId changes. Leave false to avoid replacement loops with unknown values."
 }
-
-# NOTE: Terraform does not support top-level custom validation blocks; keeping ownership check implicit.
-
-// (PIM variables moved to variables.pim.tf)
 
 variable "role_assignments" {
   type = map(object({
@@ -227,18 +155,6 @@ variable "role_assignments" {
     ])
     error_message = "condition_version must be '2.0' when condition is provided."
   }
-}
-
-variable "role_assignment_definition_lookup_use_live_data" {
-  type        = bool
-  default     = false
-  description = "Whether to use live (API) data for role definition name lookups. If false, cached data from the helper module is used for stability."
-}
-
-variable "role_assignment_replace_on_immutable_value_changes" {
-  type        = bool
-  default     = false
-  description = "If true, role assignments will be replaced automatically when principalId or roleDefinitionId changes. Leave false to avoid replacement loops with unknown values."
 }
 
 variable "role_definition_lookup_scope" {
