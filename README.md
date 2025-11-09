@@ -9,6 +9,14 @@ traditional `azurerm` and `azuread`.
 
 ## Status
 
+### `msgraph` PATCH bug
+
+This affects multiple attributes, the PATCH fails to update the resource:
+
+https://github.com/microsoft/terraform-provider-msgraph/issues/75
+
+### 404-on-destroy for eligibility schedule
+
 Functional however there is a `destroy` bug that prevent resources being tidied.
 
 See <https://github.com/microsoft/terraform-provider-msgraph/issues/66>
