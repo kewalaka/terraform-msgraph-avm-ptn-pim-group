@@ -1,12 +1,22 @@
-# terraform-msgraph-pim-group
+# terraform-msgraph-avm-ptn-pim-group
 
-Azure Verified style module for managing an Entra ID (Microsoft Graph) group plus:
+Azure Verified style module for managing an Entra ID Privileged Identity Management group.
 
-* Role-assignable group lifecycle via `msgraph_resource` (`groups@v1.0`)
-* Permanent Azure RBAC role assignments and PIM eligible role assignments via AzAPI
-* Entra ID Group PIM eligibility schedule requests (membership/ownership) via Graph
-* Optional advanced group attributes (`group_advanced`) and ownership enforcement
-* Telemetry headers aligned with AVM guidance (opt-out via `enable_telemetry = false`)
+Experimental approach using the Microsoft-owned providers (`msgraph` and `azapi`), instead of
+traditional `azurerm` and `azuread`.
+
+## Status
+
+Functional however there is a `destroy` bug that prevent resources being tidied.
+
+See <https://github.com/microsoft/terraform-provider-msgraph/issues/66>
+
+Workaround until the above is fixed is to adjust terraform state before destroy:
+
+```bash
+terraform state rm 'module.privileged_group.msgraph_resource.eligibility_schedule_requests["default_000"]'
+terraform destroy -auto-approve
+```
 
 ## Graph Permissions (Minimum Application Permissions)
 

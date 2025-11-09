@@ -1,3 +1,5 @@
+# NOTE: Terraform does not support top-level custom validation blocks; keeping ownership check implicit.
+
 variable "name" {
   type        = string
   description = "The display name for the Entra ID group."
@@ -8,72 +10,23 @@ variable "name" {
   }
 }
 
-variable "eligible_member_schedules" {
-  type = map(object({
-    principal_id         = string
-    group_id             = optional(string)
-    assignment_type      = optional(string)
-    duration             = optional(string)
-    expiration_date      = optional(string)
-    start_date           = optional(string)
-    justification        = optional(string)
-    permanent_assignment = optional(bool)
-    ticket_number        = optional(string)
-    ticket_system        = optional(string)
-    enabled              = optional(bool)
-    timeouts = optional(object({
-      create = optional(string)
-      read   = optional(string)
-      update = optional(string)
-      delete = optional(string)
-    }))
-  }))
-  default     = {}
-  description = "Advanced configuration for eligible member schedules. Keys should be unique identifiers for each schedule."
-}
+variable "allow_role_assignable_group_without_owner" {
+  type        = bool
+  default     = false
+  description = <<DESC
+Allows creation of a role-assignable group without any owners. Not recommended.
 
-variable "eligible_members" {
-  type        = list(string)
-  default     = []
-  description = "A list of principal IDs to be made eligible for membership in the group."
-}
+Why: Owners provide delegated recovery and governance for privileged groups.
+Leaving a role-assignable group ownerless can impede lifecycle management and
+reduce accountability.
 
-variable "eligible_role_assignments" {
-  type = map(object({
-    scope                      = string
-    role_definition_id_or_name = string
-    principal_id               = optional(string, null)
-    condition                  = optional(string, null)
-    condition_version          = optional(string, null)
-    justification              = optional(string, null)
-    schedule = optional(object({
-      start_date_time = optional(string, null)
-      expiration = optional(object({
-        duration_days  = optional(number, null)
-        duration_hours = optional(number, null)
-        end_date_time  = optional(string, null)
-      }), null)
-    }), null)
-    ticket = optional(object({
-      system = optional(string, null)
-      number = optional(string, null)
-    }), null)
-    timeouts = optional(object({
-      create = optional(string, null)
-      read   = optional(string, null)
-      delete = optional(string, null)
-    }), null)
-  }))
-  default     = {}
-  description = "Map of PIM-eligible role assignments keyed by an arbitrary identifier."
+References:
+- Microsoft Graph group (isAssignableToRole): https://learn.microsoft.com/graph/api/resources/group?view=graph-rest-1.0
+- Assign Azure roles using groups: https://learn.microsoft.com/azure/role-based-access-control/role-assignments-group
+- Privileged access groups (PIM): https://learn.microsoft.com/entra/id-governance/privileged-identity-management/groups-features
 
-  validation {
-    condition = alltrue([
-      for _, cfg in var.eligible_role_assignments :
-      length(trimspace(cfg.scope)) > 0 && length(trimspace(cfg.role_definition_id_or_name)) > 0
-    ])
-    error_message = "Each eligible role assignment must include both scope and role_definition_id_or_name."
-  }
+Set to true only if you fully understand and accept the risk.
+DESC
 }
 
 variable "enable_telemetry" {
@@ -85,6 +38,12 @@ For more information see <https://aka.ms/avm/telemetryinfo>.
 If it is set to false, then no telemetry will be collected.
 DESCRIPTION
   nullable    = false
+}
+
+variable "group_default_owner_object_ids" {
+  type        = list(string)
+  default     = []
+  description = "Fallback list of owner object IDs when group_settings.owners is not specified. Provide at least one for role-assignable groups."
 }
 
 variable "group_description" {
@@ -113,8 +72,8 @@ variable "group_settings" {
     types                      = optional(list(string))
     visibility                 = optional(string)
     dynamic_membership = optional(object({
-      enabled = bool
-      rule    = string
+      rule             = string
+      processing_state = optional(string, "On")
     }))
     timeouts = optional(object({
       create = optional(string)
@@ -124,189 +83,60 @@ variable "group_settings" {
     }))
   })
   default     = {}
-  description = "Optional settings applied to the Entra ID group beyond the baseline configuration."
+  description = <<DESCRIPTION
+Optional settings applied to the Entra ID group beyond the baseline configuration.
+
+## Role-Assignable Groups (`assignable_to_role`)
+
+Role-assignable groups have special properties and limitations that should be considered:
+
+### When Role-Assignable is REQUIRED:
+- **Entra ID Role Assignment**: If you want to assign Entra ID (directory) roles to a group, it MUST be role-assignable.
+  The `assignable_to_role` property must be set at group creation and cannot be changed afterward.
+
+### When Role-Assignable is RECOMMENDED:
+- **Critical Resources**: For groups providing access to sensitive resources, role-assignable groups offer enhanced security:
+  - Only Global Administrator, Privileged Role Administrator, or the group Owner can manage the group
+  - Only these privileged roles can modify credentials of active group members
+  - Prevents privilege escalation by lower-privileged administrators (e.g., Helpdesk Administrator cannot reset passwords of members)
+
+### Important Limitations:
+- **500 Group Limit**: Maximum of 500 role-assignable groups per tenant (hard limit)
+- **No Nesting**: Role-assignable groups cannot contain other groups as members
+- **Immutable Property**: Cannot be changed after group creation
+- **Planning Required**: In large environments with many PIM-enabled groups, reserve role-assignable groups for:
+  - Groups that need Entra ID role assignments
+  - Groups providing access to highly privileged resources
+  - Consider using non-role-assignable groups for less critical PIM scenarios (subscription-level access, etc.)
+
+### PIM for Groups Compatibility:
+- **Any security group or Microsoft 365 group can use PIM for Groups** (except dynamic membership groups and on-premises synced groups)
+- Role-assignable groups are NOT required for PIM for Groups functionality
+- This restriction was removed in January 2023, allowing more than 500 PIM-enabled groups per tenant
+
+### Sources:
+- [Relationship between role-assignable groups and PIM for Groups](https://learn.microsoft.com/en-us/entra/id-governance/privileged-identity-management/concept-pim-for-groups#relationship-between-role-assignable-groups-and-pim-for-groups)
+- [What are Microsoft Entra role-assignable groups?](https://learn.microsoft.com/en-us/entra/id-governance/privileged-identity-management/concept-pim-for-groups#what-are-microsoft-entra-role-assignable-groups)
+- [Create a role-assignable group in Microsoft Entra ID](https://learn.microsoft.com/en-us/entra/identity/role-based-access-control/groups-create-eligible)
+DESCRIPTION
 }
 
-variable "group_default_owner_object_ids" {
-  type        = list(string)
-  default     = []
-  description = "Fallback list of owner object IDs when group_settings.owners is not specified. Provide at least one for role-assignable groups."
-}
-
-variable "allow_role_assignable_group_without_owner" {
+variable "role_assignment_definition_lookup_use_live_data" {
   type        = bool
   default     = false
-  description = <<DESC
-Allows creation of a role-assignable group without any owners. Not recommended.
-
-Why: Owners provide delegated recovery and governance for privileged groups.
-Leaving a role-assignable group ownerless can impede lifecycle management and
-reduce accountability.
-
-References:
-- Microsoft Graph group (isAssignableToRole): https://learn.microsoft.com/graph/api/resources/group?view=graph-rest-1.0
-- Assign Azure roles using groups: https://learn.microsoft.com/azure/role-based-access-control/role-assignments-group
-- Privileged access groups (PIM): https://learn.microsoft.com/entra/id-governance/privileged-identity-management/groups-features
-
-Set to true only if you fully understand and accept the risk.
-DESC
+  description = "Whether to use live (API) data for role definition name lookups. If false, cached data from the helper module is used for stability."
 }
 
-variable "group_advanced" {
-  type = object({
-    classification                   = optional(string)
-    preferred_language               = optional(string)
-    preferred_data_location          = optional(string)
-    unique_name                      = optional(string)
-    is_management_restricted         = optional(bool)
-    sensitivity_labels               = optional(list(object({ label_id = string })))
-    assigned_licenses                = optional(list(object({ sku_id = string, disabled_plans = optional(list(string), []) })))
-    explicit_group_types             = optional(list(string))
-    membership_rule_processing_state = optional(string) # On | Paused
-  })
-  default     = {}
-  description = "Advanced Microsoft Graph group fields for full coverage beyond baseline AVM settings."
-}
-
-# NOTE: Terraform does not support top-level custom validation blocks; keeping ownership check implicit.
-
-variable "pim_activation_max_duration" {
-  type        = string
-  default     = "PT8H"
-  description = "The maximum duration for which a PIM group membership can be activated. Should be an ISO 8601 duration string (e.g., 'PT8H' for 8 hours)."
-}
-
-variable "pim_approver_object_ids" {
-  type        = list(string)
-  default     = []
-  description = "A list of object IDs for principals who can approve PIM activation requests. Only used if pim_require_approval_on_activation is true."
-
-  validation {
-    condition     = var.pim_require_approval_on_activation ? length(var.pim_approver_object_ids) > 0 : true
-    error_message = "Provide at least one approver object ID when pim_require_approval_on_activation is true."
-  }
-}
-
-variable "pim_approver_object_type" {
-  type        = string
-  default     = "singleUser"
-  description = "The approver object type supplied to the policy. Use 'singleUser' for individual users or 'groupMembers' for Entra ID groups."
-
-  validation {
-    condition     = contains(["singleUser", "groupMembers"], var.pim_approver_object_type)
-    error_message = "pim_approver_object_type must be either 'singleUser' or 'groupMembers'."
-  }
-}
-
-variable "pim_eligibility_duration" {
-  type        = string
-  default     = "P180D"
-  description = "The ISO8601 duration that an eligibility assignment remains valid (e.g., 'P365D')."
-
-  validation {
-    condition     = contains(["P15D", "P30D", "P90D", "P180D", "P365D"], var.pim_eligibility_duration)
-    error_message = "pim_eligibility_duration must be one of P15D, P30D, P90D, P180D, or P365D as required by Entra ID PIM."
-  }
-}
-
-variable "pim_policy_settings" {
-  type = object({
-    role_id = optional(string)
-    eligible_assignment_rules = optional(list(object({
-      expiration_required = optional(bool)
-      expire_after        = optional(string)
-    })))
-    active_assignment_rules = optional(list(object({
-      expiration_required                = optional(bool)
-      expire_after                       = optional(string)
-      require_multifactor_authentication = optional(bool)
-      require_justification              = optional(bool)
-      require_ticket_info                = optional(bool)
-    })))
-    activation_rules = optional(list(object({
-      maximum_duration                                   = optional(string)
-      require_multifactor_authentication                 = optional(bool)
-      require_approval                                   = optional(bool)
-      require_justification                              = optional(bool)
-      require_ticket_info                                = optional(bool)
-      required_conditional_access_authentication_context = optional(string)
-      approval_stage = optional(list(object({
-        primary_approver = optional(set(object({
-          object_id = string
-          type      = optional(string)
-        })))
-      })))
-    })))
-    notification_rules = optional(list(object({
-      eligible_assignments = optional(list(object({
-        admin_notifications = optional(list(object({
-          default_recipients    = bool
-          notification_level    = string
-          additional_recipients = optional(set(string))
-        })))
-        approver_notifications = optional(list(object({
-          default_recipients    = bool
-          notification_level    = string
-          additional_recipients = optional(set(string))
-        })))
-        assignee_notifications = optional(list(object({
-          default_recipients    = bool
-          notification_level    = string
-          additional_recipients = optional(set(string))
-        })))
-      })))
-      eligible_activations = optional(list(object({
-        admin_notifications = optional(list(object({
-          default_recipients    = bool
-          notification_level    = string
-          additional_recipients = optional(set(string))
-        })))
-        approver_notifications = optional(list(object({
-          default_recipients    = bool
-          notification_level    = string
-          additional_recipients = optional(set(string))
-        })))
-        assignee_notifications = optional(list(object({
-          default_recipients    = bool
-          notification_level    = string
-          additional_recipients = optional(set(string))
-        })))
-      })))
-      active_assignments = optional(list(object({
-        admin_notifications = optional(list(object({
-          default_recipients    = bool
-          notification_level    = string
-          additional_recipients = optional(set(string))
-        })))
-        approver_notifications = optional(list(object({
-          default_recipients    = bool
-          notification_level    = string
-          additional_recipients = optional(set(string))
-        })))
-        assignee_notifications = optional(list(object({
-          default_recipients    = bool
-          notification_level    = string
-          additional_recipients = optional(set(string))
-        })))
-      })))
-    })))
-  })
-  default     = {}
-  description = "Overrides for the azuread_group_role_management_policy resource. Provide blocks to fully customise policy behaviour; omit or set empty lists to fall back to sensible defaults."
-}
-
-variable "pim_require_approval_on_activation" {
+variable "role_assignment_replace_on_immutable_value_changes" {
   type        = bool
   default     = false
-  description = "Whether approval is required to activate PIM group membership. Should be false for automation."
+  description = "If true, role assignments will be replaced automatically when principalId or roleDefinitionId changes. Leave false to avoid replacement loops with unknown values."
 }
 
-variable "pim_require_mfa_on_activation" {
-  type        = bool
-  default     = true
-  description = "Whether MFA is required to activate PIM group membership."
-}
-
+# tflint-ignore: terraform_standard_module_structure
+# This variable does not comply with standard AVM role_assignments interface because
+# this module assigns the created GROUP to Azure RBAC roles at external scopes,
+# rather than assigning roles TO the created resource (which is the standard pattern).
 variable "role_assignments" {
   type = map(object({
     scope                                  = string
@@ -326,7 +156,25 @@ variable "role_assignments" {
     }), null)
   }))
   default     = {}
-  description = "Map of permanent role assignments keyed by an arbitrary identifier."
+  description = <<DESCRIPTION
+A map of Azure RBAC role assignments where the created group will be assigned as principal.
+Unlike the standard AVM role_assignments interface, these assignments are made TO external Azure
+resources (at the specified scope), not on the group itself.
+
+- `<map key>` - An arbitrary unique key for the assignment.
+- `scope` - The Azure resource ID where the role assignment will be created.
+- `role_definition_id_or_name` - The ID or name of the role definition to assign.
+- `name` - (Optional) The name GUID for the role assignment. If not provided, a random UUID will be generated.
+- `principal_id` - (Optional) The principal ID to assign. Defaults to the created group's ID.
+- `description` - (Optional) The description of the role assignment.
+- `skip_service_principal_aad_check` - (Optional) If set to true, skips the Azure Active Directory check for the service principal.
+- `condition` - (Optional) The condition which will be used to scope the role assignment.
+- `condition_version` - (Optional) The version of the condition syntax. Valid values are '2.0'.
+- `delegated_managed_identity_resource_id` - (Optional) The delegated Azure Resource Id which contains a Managed Identity.
+- `principal_type` - (Optional) The type of the `principal_id`. Possible values are `User`, `Group` and `ServicePrincipal`.
+- `timeouts` - (Optional) Timeout configuration for create, read, and delete operations.
+DESCRIPTION
+  nullable    = false
 
   validation {
     condition = alltrue([
@@ -348,10 +196,10 @@ variable "role_assignments" {
   validation {
     condition = alltrue([
       for _, cfg in var.role_assignments : (
-        cfg.principal_type == null || contains(["User", "Group", "ServicePrincipal", "MSI"], cfg.principal_type)
+        cfg.principal_type == null || contains(["User", "Group", "ServicePrincipal"], cfg.principal_type)
       )
     ])
-    error_message = "principal_type must be one of 'User', 'Group', 'ServicePrincipal', or 'MSI' when set."
+    error_message = "principal_type must be one of 'User', 'Group', or 'ServicePrincipal' when set."
   }
   # condition_version must be '2.0' if condition is set
   validation {
@@ -362,18 +210,6 @@ variable "role_assignments" {
     ])
     error_message = "condition_version must be '2.0' when condition is provided."
   }
-}
-
-variable "role_assignment_definition_lookup_use_live_data" {
-  type        = bool
-  default     = false
-  description = "Whether to use live (API) data for role definition name lookups. If false, cached data from the helper module is used for stability."
-}
-
-variable "role_assignment_replace_on_immutable_value_changes" {
-  type        = bool
-  default     = false
-  description = "If true, role assignments will be replaced automatically when principalId or roleDefinitionId changes. Leave false to avoid replacement loops with unknown values."
 }
 
 variable "role_definition_lookup_scope" {

@@ -29,7 +29,7 @@ Example:
 
 ```hcl
 module "privileged_group" {
-  source = "kewalaka/terraform-msgraph-pim-group"
+  source = "kewalaka/terraform-msgraph-avm-ptn-pim-group"
 
   # ...
   role_definition_lookup_scope = "/subscriptions/00000000-0000-0000-0000-000000000000"

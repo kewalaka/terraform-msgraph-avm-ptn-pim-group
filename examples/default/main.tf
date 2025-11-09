@@ -33,12 +33,16 @@ resource "random_string" "group_suffix" {
 module "privileged_group" {
   source = "../.."
 
-  name              = "pag-module-testing-minimal-${random_string.group_suffix.result}"
-  group_description = "Privileged group with default PIM settings."
-
-  # Keep this example simple by not making the group role-assignable,
-  # so owners are not required by the precondition.
+  name = "pag-module-testing-minimal-${random_string.group_suffix.result}"
+  # TESTING ONLY: Bypass owner precondition for minimal example
+  # NEVER use this setting in production - role-assignable groups require owners
+  # See examples/typical or examples/full for production-ready patterns with owners configured
+  allow_role_assignable_group_without_owner = true
+  group_description                         = "Privileged group with default PIM settings."
+  # Switch to role-assignable to align with prior azuread behavior
   group_settings = {
-    assignable_to_role = false
+    assignable_to_role = true
+    security_enabled   = true
+    mail_enabled       = false
   }
 }
